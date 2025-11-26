@@ -1,92 +1,131 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_sizes.dart';
+import '../../../../core/widgets/custom_card.dart';
+import '../../../../data/models/notification_model.dart';
 
-enum AlertPriority { high, medium, low }
+class QuickNotifications extends StatelessWidget {
+  final List<NotificationModel> notifications;
+  final void Function(int id)? onTap;
 
-class AlertCard extends StatelessWidget {
-  final String title;
-  final String description;
-  final VoidCallback? onTap;
-  final AlertPriority priority;
-
-  const AlertCard({super.key, required this.title, required this.description, this.onTap, this.priority = AlertPriority.medium});
-
-  Color get _backgroundColor {
-    switch (priority) {
-      case AlertPriority.high:
-        return AppColors.alertHighBackground;
-      case AlertPriority.medium:
-        return AppColors.alertMediumBackground;
-      case AlertPriority.low:
-      default:
-        return AppColors.alertLowBackground;
-    }
-  }
-
-  Color get _accentColor {
-    switch (priority) {
-      case AlertPriority.high:
-        return AppColors.alertHighAccent;
-      case AlertPriority.medium:
-        return AppColors.alertMediumAccent;
-      case AlertPriority.low:
-      default:
-        return AppColors.alertLowAccent;
-    }
-  }
-
-  IconData get _icon {
-    switch (priority) {
-      case AlertPriority.high:
-        return Icons.warning_amber_rounded;
-      case AlertPriority.medium:
-        return Icons.notifications_active_outlined;
-      case AlertPriority.low:
-      default:
-        return Icons.info_outline;
-    }
-  }
+  const QuickNotifications({
+    super.key,
+    required this.notifications,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: _backgroundColor,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withAlpha(25), blurRadius: 10, offset: const Offset(0, 4)),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Thông báo mới',
+          style: Theme.of(context).textTheme.titleMedium,
         ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: _accentColor.withAlpha(38), shape: BoxShape.circle),
-              child: Icon(_icon, color: _accentColor, size: 24),
+        const SizedBox(height: AppSizes.paddingSmall),
+
+        // Tăng nhẹ chiều cao cho chắc, khỏi overflow
+        SizedBox(
+          height: 140,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: notifications.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 10),
+            itemBuilder: (context, index) {
+              final item = notifications[index];
+              final createdLabel = _formatDate(item.createdAt);
+
+              return SizedBox(
+                width: 220,
+                child: CustomCard(
+                  padding: const EdgeInsets.all(AppSizes.paddingSmall),
+                  onTap: onTap != null ? () => onTap!(item.id) : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min, // co đúng theo nội dung
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(7),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.08),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.notifications_active_outlined,
+                              color: AppColors.primary,
+                              size: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              createdLabel,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                color: Colors.black54,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+
+                      // ❗ Chỉ giữ lại TIÊU ĐỀ
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      // ❌ Không còn SizedBox + Expanded + content nữa
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class QuickNotificationShimmer extends StatelessWidget {
+  const QuickNotificationShimmer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: List.generate(
+        2,
+            (index) => Expanded(
+          child: Container(
+            height: 140, // match với QuickNotifications
+            margin: EdgeInsets.only(right: index == 1 ? 0 : 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(16),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600, color: _accentColor)),
-                  const SizedBox(height: 4),
-                  Text(description, style: GoogleFonts.poppins(fontSize: 14, color: Colors.black87)),
-                ],
-              ),
-            ),
-            Text('Xem thêm', style: GoogleFonts.poppins(fontSize: 12, color: _accentColor, decoration: TextDecoration.underline)),
-          ],
+          ),
         ),
       ),
     );
+  }
+}
+
+String _formatDate(String raw) {
+  try {
+    final date = DateTime.parse(raw);
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  } catch (_) {
+    return raw;
   }
 }

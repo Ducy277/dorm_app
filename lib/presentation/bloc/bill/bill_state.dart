@@ -25,6 +25,13 @@ class BillLoaded extends BillState {
   List<Object?> get props => [bill];
 }
 
+class BillPaymentUrlReady extends BillState {
+  final String paymentUrl;
+  const BillPaymentUrlReady({required this.paymentUrl});
+  @override
+  List<Object?> get props => [paymentUrl];
+}
+
 class BillError extends BillState {
   final String message;
   const BillError({required this.message});

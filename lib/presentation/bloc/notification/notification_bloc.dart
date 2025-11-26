@@ -14,10 +14,13 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
 
   NotificationBloc({required this.notificationRepository}) : super(NotificationInitial()) {
     on<FetchNotifications>(_onFetchNotifications);
-    on<MarkNotificationRead>(_onMarkAsRead);
+    on<FetchNotificationDetail>(_onFetchNotificationDetail);
   }
 
-  Future<void> _onFetchNotifications(FetchNotifications event, Emitter<NotificationState> emit) async {
+  Future<void> _onFetchNotifications(
+    FetchNotifications event,
+    Emitter<NotificationState> emit,
+  ) async {
     emit(NotificationLoading());
     try {
       final notifications = await notificationRepository.getNotifications(page: event.page);
@@ -27,12 +30,17 @@ class NotificationBloc extends Bloc<NotificationEvent, NotificationState> {
     }
   }
 
-  Future<void> _onMarkAsRead(MarkNotificationRead event, Emitter<NotificationState> emit) async {
+  Future<void> _onFetchNotificationDetail(
+    FetchNotificationDetail event,
+    Emitter<NotificationState> emit,
+  ) async {
+    emit(NotificationLoading());
     try {
-      await notificationRepository.markAsRead(event.id);
-      // Sau khi đánh dấu đọc, có thể refresh danh sách hoặc cập nhật cục bộ.
+      final notification = await notificationRepository.getNotificationDetail(event.id);
+      emit(NotificationLoaded(notification: notification));
     } on AppException catch (e) {
       emit(NotificationError(message: e.message));
     }
   }
 }
+

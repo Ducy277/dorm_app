@@ -9,16 +9,28 @@ class BillRepository {
 
   BillRepository({required this.apiService});
 
-  /// Lấy danh sách hóa đơn.
+  /// Lấy danh sách hóa đơn của sinh viên hiện tại.
   Future<List<BillModel>> getBills({int? page}) async {
     try {
       final response = await apiService.getRequest(
-        ApiEndpoints.bills,
+        ApiEndpoints.billsMy,
         queryParameters: page != null ? {'page': page} : null,
       );
       final data = response.data as Map<String, dynamic>;
       final list = data['data'] as List? ?? [];
       return list.map((e) => BillModel.fromJson(e)).toList();
+    } on AppException {
+      rethrow;
+    }
+  }
+
+  /// Lấy chi tiết 1 hóa đơn.
+  Future<BillModel> getBillDetail(int id) async {
+    try {
+      final response = await apiService.getRequest(ApiEndpoints.bill(id));
+      final data = response.data as Map<String, dynamic>;
+      final billData = data['data'] ?? data;
+      return BillModel.fromJson(Map<String, dynamic>.from(billData));
     } on AppException {
       rethrow;
     }
@@ -41,3 +53,4 @@ class BillRepository {
     }
   }
 }
+

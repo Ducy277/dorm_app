@@ -14,6 +14,7 @@ class BookingEntity extends Equatable {
   final String expectedCheckOutDate;
   final String? actualCheckOutDate;
   final String status;
+  final String? reason;
   final UserEntity? user;
   final RoomEntity? room;
 
@@ -27,6 +28,7 @@ class BookingEntity extends Equatable {
     required this.expectedCheckOutDate,
     this.actualCheckOutDate,
     required this.status,
+    this.reason,
     this.user,
     this.room,
   });
@@ -42,6 +44,7 @@ class BookingEntity extends Equatable {
         expectedCheckOutDate,
         actualCheckOutDate,
         status,
+        reason,
         user,
         room,
       ];

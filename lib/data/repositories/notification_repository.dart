@@ -24,10 +24,15 @@ class NotificationRepository {
     }
   }
 
-  /// Đánh dấu thông báo đã đọc.
-  Future<void> markAsRead(int id) async {
+  /// Lấy chi tiết 1 thông báo.
+  Future<NotificationModel> getNotificationDetail(int id) async {
     try {
-      await apiService.putRequest(ApiEndpoints.notification(id), data: {'is_read': true});
+      final response = await apiService.getRequest(
+        ApiEndpoints.notification(id),
+      );
+      final data = response.data as Map<String, dynamic>;
+      final item = data['data'] ?? data;
+      return NotificationModel.fromJson(Map<String, dynamic>.from(item));
     } on AppException {
       rethrow;
     }

@@ -16,12 +16,36 @@ class FetchBookings extends BookingEvent {
 
 class CreateBookingEvent extends BookingEvent {
   final int roomId;
+  final String bookingType;
   final String checkInDate;
   final String expectedCheckOutDate;
   final String rentalType;
-  const CreateBookingEvent({required this.roomId, required this.checkInDate, required this.expectedCheckOutDate, required this.rentalType});
+  final String? reason;
+  const CreateBookingEvent({
+    required this.roomId,
+    required this.bookingType,
+    required this.checkInDate,
+    required this.expectedCheckOutDate,
+    required this.rentalType,
+    this.reason,
+  });
   @override
-  List<Object?> get props => [roomId, checkInDate, expectedCheckOutDate, rentalType];
+  List<Object?> get props =>
+      [roomId, bookingType, checkInDate, expectedCheckOutDate, rentalType, reason];
+}
+
+class RequestReturnBookingEvent extends BookingEvent {
+  final String? reason;
+  const RequestReturnBookingEvent({this.reason});
+  @override
+  List<Object?> get props => [reason];
+}
+
+class CancelBookingEvent extends BookingEvent {
+  final int id;
+  const CancelBookingEvent(this.id);
+  @override
+  List<Object?> get props => [id];
 }
 
 class UpdateBookingStatusEvent extends BookingEvent {

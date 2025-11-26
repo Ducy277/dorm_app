@@ -1,4 +1,5 @@
 import '../../domain/entities/bill_entity.dart';
+import '../../core/utils/validators.dart';
 
 /// Thông tin thanh toán hóa đơn.
 class PaymentModel {
@@ -21,7 +22,7 @@ class PaymentModel {
       id: json['id'] as int,
       billId: json['bill_id'] as int,
       paymentType: json['payment_type'] as String,
-      amount: (json['amount'] as num).toDouble(),
+      amount: parseDouble(json['amount']),
       paidAt: json['paid_at'] as String?,
     );
   }

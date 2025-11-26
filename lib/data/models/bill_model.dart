@@ -1,4 +1,5 @@
 import '../../domain/entities/bill_entity.dart';
+import '../../core/utils/validators.dart';
 import 'booking_model.dart';
 import 'bill_item_model.dart';
 import 'payment_model.dart';
@@ -35,12 +36,18 @@ class BillModel {
       billCode: json['bill_code'] as String,
       userId: json['user_id'] as int,
       bookingId: json['booking_id'] as int,
-      totalAmount: (json['total_amount'] as num).toDouble(),
+      totalAmount: parseDouble(json['total_amount']),
       status: json['status'] as String,
       dueDate: json['due_date'] as String?,
-      billItems: (json['bill_items'] as List?)?.map((e) => BillItemModel.fromJson(e)).toList(),
-      payments: (json['payments'] as List?)?.map((e) => PaymentModel.fromJson(e)).toList(),
-      booking: json['booking'] != null ? BookingModel.fromJson(json['booking']) : null,
+      billItems: (json['bill_items'] as List?)
+          ?.map((e) => BillItemModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      payments: (json['payments'] as List?)
+          ?.map((e) => PaymentModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      booking: json['booking'] != null
+          ? BookingModel.fromJson(json['booking'] as Map<String, dynamic>)
+          : null,
     );
   }
 

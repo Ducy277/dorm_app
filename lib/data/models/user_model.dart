@@ -1,5 +1,6 @@
 import '../../domain/entities/student_entity.dart';
 import '../../domain/entities/user_entity.dart';
+import 'booking_model.dart';
 
 /// Model đại diện cho người dùng, ánh xạ dữ liệu từ API.
 class UserModel {
@@ -9,6 +10,7 @@ class UserModel {
   final String role;
   final String? avatar;
   final StudentModel? student;
+  final BookingModel? activeBooking;
 
   UserModel({
     required this.id,
@@ -17,6 +19,7 @@ class UserModel {
     required this.role,
     this.avatar,
     this.student,
+    this.activeBooking,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -27,6 +30,9 @@ class UserModel {
       role: json['role'] as String? ?? 'student',
       avatar: json['avatar'] as String?,
       student: json['student'] != null ? StudentModel.fromJson(json['student']) : null,
+      activeBooking: json['active_booking'] != null
+          ? BookingModel.fromJson(Map<String, dynamic>.from(json['active_booking']))
+          : null,
     );
   }
 

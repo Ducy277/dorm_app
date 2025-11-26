@@ -17,30 +17,41 @@ class ApiService {
     _dio.options.connectTimeout = const Duration(seconds: 30);
     _dio.options.receiveTimeout = const Duration(seconds: 60);
     _dio.options.responseType = ResponseType.json;
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        // Chèn header Authorization nếu có token
-        final token = await secureStorage.getToken();
-        if (token != null) {
-          options.headers[HttpHeaders.authorizationHeader] = 'Bearer $token';
-        }
-        return handler.next(options);
-      },
-      onError: (DioException error, handler) async {
-        // Xử lý lỗi 401: token hết hạn hoặc không hợp lệ
-        if (error.response?.statusCode == 401) {
-          await secureStorage.deleteToken();
-          // Có thể thêm logic chuyển hướng đến trang đăng nhập bằng cách phát sự kiện qua Bloc
-        }
-        return handler.next(error);
-      },
-    ));
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['ngrok-skip-browser-warning'] = 'true';
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onRequest: (options, handler) async {
+          // Chèn header Authorization nếu có token
+          final token = await secureStorage.getToken();
+          if (token != null) {
+            options.headers[HttpHeaders.authorizationHeader] = 'Bearer $token';
+          }
+          _dio.options.headers['Accept'] = 'application/json';
+          return handler.next(options);
+        },
+        onError: (DioException error, handler) async {
+          // Xử lý lỗi 401: token hết hạn hoặc không hợp lệ
+          if (error.response?.statusCode == 401) {
+            await secureStorage.deleteToken();
+            // Có thể thêm logic chuyển hướng đến trang đăng nhập bằng cách phát sự kiện qua Bloc
+          }
+          return handler.next(error);
+        },
+      ),
+    );
   }
 
   /// Thực hiện một yêu cầu GET tới [path] với [queryParameters].
-  Future<Response<T>> getRequest<T>(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response<T>> getRequest<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      final response = await _dio.get<T>(path, queryParameters: queryParameters);
+      final response = await _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+      );
       return response;
     } on DioException catch (e) {
       _handleDioError(e);
@@ -49,11 +60,21 @@ class ApiService {
   }
 
   /// Thực hiện một yêu cầu POST tới [path] với [data].
-  Future<Response<T>> postRequest<T>(String path, {dynamic data, Map<String, dynamic>? queryParameters}) async {
+  Future<Response<T>> postRequest<T>(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
-      final response = await _dio.post<T>(path, data: data, queryParameters: queryParameters);
+      final response = await _dio.post<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+      );
       return response;
     } on DioException catch (e) {
+      print('LOGIN ERROR STATUS: ${e.response?.statusCode}');
+      print('LOGIN ERROR BODY: ${e.response?.data}');
       _handleDioError(e);
       rethrow;
     }
@@ -82,18 +103,16 @@ class ApiService {
   }
 
   Future<Response<T>> postMultipartRequest<T>(
-      String path, {
-        required FormData data,
-        Map<String, dynamic>? queryParameters,
-      }) async {
+    String path, {
+    required FormData data,
+    Map<String, dynamic>? queryParameters,
+  }) async {
     try {
       final response = await _dio.post<T>(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: Options(
-          contentType: 'multipart/form-data',
-        ),
+        options: Options(contentType: 'multipart/form-data'),
       );
       return response;
     } on DioException catch (e) {
@@ -113,6 +132,8 @@ class ApiService {
         throw ValidationException(message, statusCode: statusCode);
       } else if (statusCode == 401) {
         throw AuthenticationException(message, statusCode: statusCode);
+      } else if (statusCode == 404) {
+        throw NotFoundException(message, statusCode: statusCode);
       } else {
         throw NetworkException(message, statusCode: statusCode);
       }

@@ -9,11 +9,11 @@ class RepairRepository {
 
   RepairRepository({required this.apiService});
 
-  /// Lấy danh sách yêu cầu sửa chữa.
+  /// Lấy danh sách yêu cầu sửa chữa của sinh viên hiện tại.
   Future<List<RepairModel>> getRepairs({int? page}) async {
     try {
       final response = await apiService.getRequest(
-        ApiEndpoints.repairs,
+        ApiEndpoints.repairsMy,
         queryParameters: page != null ? {'page': page} : null,
       );
       final data = response.data as Map<String, dynamic>;
@@ -25,20 +25,21 @@ class RepairRepository {
   }
 
   /// Gửi yêu cầu sửa chữa mới.
-  Future<RepairModel> createRepair({required int roomId, required String description}) async {
+  Future<void> createRepair({
+    required int roomId,
+    required String description,
+  }) async {
     try {
-      final response = await apiService.postRequest(
+      await apiService.postRequest(
         ApiEndpoints.repairs,
         data: {
           'room_id': roomId,
           'description': description,
-          // image_path có thể gửi dưới dạng multipart ở UI
         },
       );
-      final data = response.data as Map<String, dynamic>;
-      return RepairModel.fromJson(data['data']);
     } on AppException {
       rethrow;
     }
   }
 }
+

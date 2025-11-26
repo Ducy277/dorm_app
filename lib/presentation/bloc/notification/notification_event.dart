@@ -14,9 +14,9 @@ class FetchNotifications extends NotificationEvent {
   List<Object?> get props => [page];
 }
 
-class MarkNotificationRead extends NotificationEvent {
+class FetchNotificationDetail extends NotificationEvent {
   final int id;
-  const MarkNotificationRead({required this.id});
+  const FetchNotificationDetail({required this.id});
   @override
   List<Object?> get props => [id];
 }

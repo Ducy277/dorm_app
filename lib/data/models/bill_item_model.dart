@@ -1,4 +1,5 @@
 import '../../domain/entities/bill_entity.dart';
+import '../../core/utils/validators.dart';
 
 /// Hạng mục trên hóa đơn.
 class BillItemModel {
@@ -14,7 +15,7 @@ class BillItemModel {
       id: json['id'] as int,
       billId: json['bill_id'] as int,
       description: json['description'] as String,
-      amount: (json['amount'] as num).toDouble(),
+      amount: parseDouble(json['amount']),
     );
   }
 

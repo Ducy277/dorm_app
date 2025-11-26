@@ -2,133 +2,182 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_strings.dart';
+import '../../../core/constants/app_sizes.dart';
+import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/bill/bill_bloc.dart';
+import '../../bloc/my_room/my_room_bloc.dart';
 import '../../bloc/notification/notification_bloc.dart';
 import 'widgets/alert_card.dart';
 import 'widgets/header_section.dart';
+import 'widgets/sidebar_drawer.dart';
 import 'widgets/payment_summary_card.dart';
 import 'widgets/quick_actions.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              HeaderSection(
-                onAvatarTap: () => context.go('/profile'),
-                onNotificationTap: () => context.go('/profile'),
-              ),
-              const SizedBox(height: 16),
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
 
+class _DashboardScreenState extends State<DashboardScreen> {
+  bool _initialized = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _refreshAll();
+      _initialized = true;
+    }
+  }
+
+  Future<void> _refreshAll() async {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      context.read<AuthBloc>().add(const FetchProfile());
+      context.read<MyRoomBloc>().add(MyRoomRequested(userId: authState.user.id));
+      context.read<NotificationBloc>().add(const FetchNotifications());
+      context.read<BillBloc>().add(const FetchBills());
+    }
+  }
+
+  void _requireLogin() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bạn cần đăng nhập để sử dụng chức năng này.')),
+    );
+    context.go('/login');
+  }
+
+  void _requireActiveRoom() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Bạn chưa có phòng hoặc booking đang hoạt động.')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authState = context.watch<AuthBloc>().state;
+    final isAuthenticated = authState is AuthAuthenticated;
+    final notificationCount = context.select<NotificationBloc, int>((bloc) {
+      final state = bloc.state;
+      if (state is NotificationsLoaded) return state.notifications.length;
+      return 0;
+    });
+
+    return Scaffold(
+      key: _scaffoldKey,
+      drawer: SidebarDrawer(onNavigate: (route) {
+        Navigator.pop(context);
+        context.go(route);
+      }),
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _refreshAll,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              BlocBuilder<MyRoomBloc, MyRoomState>(
+                builder: (context, myRoomState) {
+                  final activeBooking = myRoomState is MyRoomLoaded ? myRoomState.activeBooking : null;
+                  return HeaderSection(
+                    userName: isAuthenticated ? (authState as AuthAuthenticated).user.name : 'Bạn',
+                    activeBooking: activeBooking,
+                    notificationCount: notificationCount,
+                    onAvatarTap: () => _scaffoldKey.currentState?.openDrawer(),
+                    onNotificationTap: () {
+                      if (!isAuthenticated) {
+                        _requireLogin();
+                        return;
+                      }
+                      context.go('/notifications');
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: AppSizes.paddingMedium),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
                 child: BlocBuilder<NotificationBloc, NotificationState>(
                   builder: (context, state) {
+                    if (!isAuthenticated) {
+                      return const SizedBox.shrink();
+                    }
                     if (state is NotificationLoading) {
-                      return const _ShimmerBox(height: 72);
+                      return const QuickNotificationShimmer();
                     }
                     if (state is NotificationsLoaded && state.notifications.isNotEmpty) {
-                      final items = state.notifications.take(2).toList();
-                      return Column(
-                        children: [
-                          AlertCard(
-                            title: items[0].title,
-                            description: items[0].content ?? '',
-                            priority: AlertPriority.medium, // Assuming medium priority
-                            onTap: () {},
-                          ),
-                          if (items.length > 1) ...[
-                            const SizedBox(height: 8),
-                            AlertCard(
-                              title: items[1].title,
-                              description: items[1].content ?? '',
-                              priority: AlertPriority.low, // Assuming low priority
-                              onTap: () {},
-                            ),
-                          ],
-                        ],
+                      final sorted = [...state.notifications]
+                        ..sort((a, b) {
+                          final aDate = DateTime.tryParse(a.createdAt);
+                          final bDate = DateTime.tryParse(b.createdAt);
+                          if (aDate != null && bDate != null) {
+                            return bDate.compareTo(aDate);
+                          }
+                          return b.createdAt.compareTo(a.createdAt);
+                        });
+                      final items = sorted.take(3).toList();
+                      return QuickNotifications(
+                        notifications: items,
+                        onTap: (id) => context.go('/notifications/$id'),
                       );
                     }
                     return const SizedBox.shrink();
                   },
                 ),
               ),
-
-              const SizedBox(height: 24),
-
-              QuickActions(actions: [
-                QuickAction(icon: Icons.meeting_room, label: AppStrings.rooms, color: Colors.blue, onTap: () => context.go('/rooms')),
-                QuickAction(icon: Icons.assignment, label: AppStrings.bookings, color: Colors.pink, onTap: () => context.go('/bookings')),
-                QuickAction(icon: Icons.receipt_long, label: AppStrings.bills, color: Colors.teal, onTap: () => context.go('/bills')),
-                QuickAction(icon: Icons.build_circle_outlined, label: AppStrings.repairs, color: Colors.orange, onTap: () => context.go('/repairs')),
-                QuickAction(icon: Icons.person_outline, label: AppStrings.profile, color: Colors.indigo, onTap: () => context.go('/profile')),
-              ]),
-
-              const SizedBox(height: 24),
-
+              const SizedBox(height: AppSizes.paddingLarge),
+              BlocBuilder<MyRoomBloc, MyRoomState>(
+                builder: (context, myRoomState) {
+                  final activeBooking = myRoomState is MyRoomLoaded ? myRoomState.activeBooking : null;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
+                    child: HomeQuickActions(
+                      isAuthenticated: isAuthenticated,
+                      hasActiveRoom: activeBooking != null,
+                      onRequireLogin: _requireLogin,
+                      onRequireActiveRoom: _requireActiveRoom,
+                      onNavigate: (route) => context.go(route),
+                      activeBooking: activeBooking,
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: AppSizes.paddingMedium),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: BlocBuilder<BillBloc, BillState>(
-                  builder: (context, state) {
-                    if (state is BillLoading) {
-                      return const _ShimmerBox(height: 180);
-                    }
-                    if (state is BillsLoaded && state.bills.isNotEmpty) {
-                      final latest = state.bills.first;
-                      final items = (latest.billItems ?? [])
-                          .map((e) => PaymentItem(label: e.description, value: e.amount, unit: 'đ'))
-                          .toList();
-                      return PaymentSummaryCard(
-                        items: items,
-                        daysUntilNextPayment: _calculateDaysUntil(latest.dueDate),
-                        onPayTap: () => context.go('/bills'),
-                      );
-                    }
-                    return PaymentSummaryCard(
-                      items: const [],
-                      daysUntilNextPayment: 0,
-                      onPayTap: () => context.go('/bills'),
+                padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
+                child: BlocBuilder<MyRoomBloc, MyRoomState>(
+                  builder: (context, myRoomState) {
+                    final activeBooking = myRoomState is MyRoomLoaded ? myRoomState.activeBooking : null;
+                    return BlocBuilder<BillBloc, BillState>(
+                      builder: (context, billState) {
+                        return PaymentSummaryCard(
+                          activeBooking: activeBooking,
+                          billState: billState,
+                          onPrimaryAction: () {
+                            if (!isAuthenticated) {
+                              _requireLogin();
+                              return;
+                            }
+                            if (activeBooking == null) {
+                              context.go('/rooms');
+                              return;
+                            }
+                            context.go('/bills');
+                          },
+                          onSecondaryAction: () => context.go('/rooms'),
+                        );
+                      },
                     );
                   },
                 ),
               ),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: AppSizes.paddingLarge),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  int _calculateDaysUntil(String? dueDate) {
-    if (dueDate == null) return 0;
-    try {
-      final due = DateTime.parse(dueDate);
-      final now = DateTime.now();
-      return due.difference(now).inDays;
-    } catch (_) {
-      return 0;
-    }
-  }
-}
-
-class _ShimmerBox extends StatelessWidget {
-  final double height;
-  const _ShimmerBox({required this.height});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: height,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(color: Colors.black.withAlpha(12), borderRadius: BorderRadius.circular(12)),
     );
   }
 }

@@ -3,65 +3,56 @@ part of 'room_bloc.dart';
 /// Các sự kiện cho RoomBloc.
 abstract class RoomEvent extends Equatable {
   const RoomEvent();
+
   @override
   List<Object?> get props => [];
 }
 
 class FetchRooms extends RoomEvent {
-  final int? page;
-  const FetchRooms({this.page});
+  final bool showLoading;
+  const FetchRooms({this.showLoading = true});
+
   @override
-  List<Object?> get props => [page];
+  List<Object?> get props => [showLoading];
+}
+
+class LoadMoreRooms extends RoomEvent {
+  const LoadMoreRooms();
+
+  @override
+  List<Object?> get props => [];
+}
+
+class UpdateRoomFilters extends RoomEvent {
+  final RoomFilters filters;
+  const UpdateRoomFilters(this.filters);
+
+  @override
+  List<Object?> get props => [filters];
 }
 
 class FetchRoomDetail extends RoomEvent {
   final int id;
   const FetchRoomDetail({required this.id});
+
   @override
   List<Object?> get props => [id];
 }
 
-class CreateRoom extends RoomEvent {
-  final RoomModel room;
-  const CreateRoom({required this.room});
-  @override
-  List<Object?> get props => [room];
-} 
+class SubmitReview extends RoomEvent {
+  final int roomId;
+  final int rating;
+  final String comment;
+  const SubmitReview(this.roomId, this.rating, this.comment);
 
-class UpdateRoom extends RoomEvent {
-  final RoomModel room;
-  const UpdateRoom({required this.room});
   @override
-  List<Object?> get props => [room];
+  List<Object?> get props => [roomId, rating, comment];
 }
 
-class DeleteRoom extends RoomEvent{
-  final int id;
-  const DeleteRoom({required this.id});
-  @override
-  List<Object?> get props => [id];
-}
+class ToggleFavouriteRoom extends RoomEvent {
+  final int roomId;
+  const ToggleFavouriteRoom(this.roomId);
 
-class UploadRoomImages extends RoomEvent {
-  final int id;
-  final List<File> files;
-  const UploadRoomImages({required this.id,required this.files});
   @override
-  List<Object?> get props => [id, files];
-}
-
-class UpdateRoomServices extends RoomEvent {
-  final int id;
-  final List<int> serviceIds;
-  const UpdateRoomServices({required this.id,required this.serviceIds});
-  @override
-  List<Object?> get props => [id, serviceIds];
-}
-
-class UpdateRoomAmenities extends RoomEvent {
-  final int id;
-  final List<int> amenityIds;
-  const UpdateRoomAmenities({required this.id,required this.amenityIds});
-  @override
-  List<Object?> get props => [id, amenityIds];
+  List<Object?> get props => [roomId];
 }

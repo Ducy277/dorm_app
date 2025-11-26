@@ -16,6 +16,8 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     on<FetchBookings>(_onFetchBookings);
     on<CreateBookingEvent>(_onCreateBooking);
     on<UpdateBookingStatusEvent>(_onUpdateStatus);
+    on<RequestReturnBookingEvent>(_onRequestReturn);
+    on<CancelBookingEvent>(_onCancelBooking);
   }
 
   Future<void> _onFetchBookings(FetchBookings event, Emitter<BookingState> emit) async {
@@ -33,9 +35,11 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     try {
       final booking = await bookingRepository.createBooking(
         roomId: event.roomId,
+        bookingType: event.bookingType,
         checkInDate: event.checkInDate,
         expectedCheckOutDate: event.expectedCheckOutDate,
         rentalType: event.rentalType,
+        reason: event.reason,
       );
       emit(BookingLoaded(booking: booking));
     } on AppException catch (e) {
@@ -48,6 +52,32 @@ class BookingBloc extends Bloc<BookingEvent, BookingState> {
     try {
       final booking = await bookingRepository.updateBookingStatus(event.id, event.status, reason: event.reason);
       emit(BookingLoaded(booking: booking));
+    } on AppException catch (e) {
+      emit(BookingError(message: e.message));
+    }
+  }
+
+  Future<void> _onRequestReturn(
+    RequestReturnBookingEvent event,
+    Emitter<BookingState> emit,
+  ) async {
+    emit(BookingLoading());
+    try {
+      final booking = await bookingRepository.requestReturn(reason: event.reason);
+      emit(BookingLoaded(booking: booking));
+    } on AppException catch (e) {
+      emit(BookingError(message: e.message));
+    }
+  }
+
+  Future<void> _onCancelBooking(
+    CancelBookingEvent event,
+    Emitter<BookingState> emit,
+  ) async {
+    emit(BookingLoading());
+    try {
+      await bookingRepository.cancelBooking(event.id);
+      emit(BookingInitial());
     } on AppException catch (e) {
       emit(BookingError(message: e.message));
     }

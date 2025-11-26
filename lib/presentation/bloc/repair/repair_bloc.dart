@@ -30,8 +30,8 @@ class RepairBloc extends Bloc<RepairEvent, RepairState> {
   Future<void> _onCreateRepair(CreateRepairEvent event, Emitter<RepairState> emit) async {
     emit(RepairLoading());
     try {
-      final repair = await repairRepository.createRepair(roomId: event.roomId, description: event.description);
-      emit(RepairLoaded(repair: repair));
+      await repairRepository.createRepair(roomId: event.roomId, description: event.description);
+      emit(RepairCreated());
     } on AppException catch (e) {
       emit(RepairError(message: e.message));
     }

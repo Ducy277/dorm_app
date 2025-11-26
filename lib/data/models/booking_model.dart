@@ -13,6 +13,7 @@ class BookingModel {
   final String expectedCheckOutDate;
   final String? actualCheckOutDate;
   final String status;
+  final String? reason;
   final UserModel? user;
   final RoomModel? room;
 
@@ -26,6 +27,7 @@ class BookingModel {
     required this.expectedCheckOutDate,
     required this.status,
     this.actualCheckOutDate,
+    this.reason,
     this.user,
     this.room,
   });
@@ -41,6 +43,7 @@ class BookingModel {
       expectedCheckOutDate: json['expected_check_out_date'] as String,
       actualCheckOutDate: json['actual_check_out_date'] as String?,
       status: json['status'] as String,
+      reason: json['reason'] as String?,
       user: json['user'] != null ? UserModel.fromJson(json['user']) : null,
       room: json['room'] != null ? RoomModel.fromJson(json['room']) : null,
     );
@@ -57,6 +60,7 @@ class BookingModel {
       expectedCheckOutDate: expectedCheckOutDate,
       actualCheckOutDate: actualCheckOutDate,
       status: status,
+      reason: reason,
       user: user?.toEntity(),
       room: room?.toEntity(),
     );

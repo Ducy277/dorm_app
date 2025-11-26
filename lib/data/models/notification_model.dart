@@ -5,14 +5,12 @@ class NotificationModel {
   final int id;
   final String title;
   final String? content;
-  final bool isRead;
   final int? userId;
   final String createdAt;
 
   NotificationModel({
     required this.id,
     required this.title,
-    required this.isRead,
     required this.createdAt,
     this.content,
     this.userId,
@@ -23,7 +21,6 @@ class NotificationModel {
       id: json['id'] as int,
       title: json['title'] as String,
       content: json['content'] as String?,
-      isRead: json['is_read'] as bool,
       userId: json['user_id'] as int?,
       createdAt: json['created_at'] as String,
     );
@@ -34,7 +31,6 @@ class NotificationModel {
       id: id,
       title: title,
       content: content,
-      isRead: isRead,
       userId: userId,
       createdAt: createdAt,
     );

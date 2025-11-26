@@ -14,6 +14,21 @@ class FetchBills extends BillEvent {
   List<Object?> get props => [page];
 }
 
+class FetchBillDetail extends BillEvent {
+  final int id;
+  const FetchBillDetail({required this.id});
+  @override
+  List<Object?> get props => [id];
+}
+
+class CreateVnPayPayment extends BillEvent {
+  final int billId;
+  final double amount;
+  const CreateVnPayPayment({required this.billId, required this.amount});
+  @override
+  List<Object?> get props => [billId, amount];
+}
+
 class PayBillEvent extends BillEvent {
   final int billId;
   final double amount;

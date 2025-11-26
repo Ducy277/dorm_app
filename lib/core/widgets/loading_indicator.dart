@@ -1,13 +1,24 @@
 import 'package:flutter/material.dart';
 
-/// Hiển thị vòng tròn tải trung tâm.
+/// Hi���n th��< vA�ng trA�n t���i trung tA�m.
 class LoadingIndicator extends StatelessWidget {
-  const LoadingIndicator({super.key});
+  final double size;
+  final bool centered;
+
+  const LoadingIndicator({
+    super.key,
+    this.size = 32,
+    this.centered = true,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: CircularProgressIndicator(),
+    final indicator = SizedBox(
+      width: size,
+      height: size,
+      child: const CircularProgressIndicator(strokeWidth: 3),
     );
+    if (!centered) return indicator;
+    return Center(child: indicator);
   }
 }
