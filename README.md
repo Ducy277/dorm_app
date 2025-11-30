@@ -1,16 +1,50 @@
-# ql_ktx
+# QL_KTX Flutter App
 
-A new Flutter project.
+Ứng dụng Flutter quản lý ký túc xá (sinh viên đặt phòng, hóa đơn, thông báo, sửa chữa...).
 
-## Getting Started
+## Yêu cầu môi trường
+- Flutter 3.24+ (stable)
+- Dart 3.5+
+- Android Studio (để build mobile)
+- Ngrok hoặc endpoint backend sẵn (REST API)
 
-This project is a starting point for a Flutter application.
+## Thiết lập nhanh
+```bash
+git clone <repo-url>
+cd ql_ktx
+flutter pub get
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Chạy ứng dụng
+- Android/iOS: `flutter run`
+- Web: `flutter run -d chrome`
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+### Cấu hình API base URL (tùy chọn)
+API mặc định lấy từ `ApiEndpoints.baseUrl` (ngrok). Muốn trỏ về server khác:
+```bash
+flutter run --dart-define=API_BASE_URL=https://your-server/api/v1
+```
+Hoặc với build web:
+```bash
+flutter run -d chrome --dart-define=API_BASE_URL=https://your-server/api/v1
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Kiến trúc & thư mục
+- `lib/core`: constants, theme, error handling, utils, widgets dùng chung.
+- `lib/data`: `datasources/api_service.dart` (Dio + token), `models`, `repositories` gọi API.
+- `lib/domain`: `entities` cho các model đã chuẩn hóa.
+- `lib/presentation`: BLoC theo tính năng (`presentation/bloc/<feature>`), routes (GoRouter), screens/widgets.
+
+## State management & DI
+- BLoC + Equatable cho events/states.
+- MultiRepositoryProvider + MultiBlocProvider khởi tạo trong `lib/app.dart`.
+- Routing: GoRouter trong `presentation/routes/app_router.dart`.
+
+## Lưu ý build
+- Nếu đổi endpoint cần đảm bảo server hỗ trợ HTTPS hoặc cấu hình ngrok phù hợp.
+- Khi build iOS cần cấu hình team/signing trong Xcode.
+
+## Scripts hữu ích
+- `flutter pub get` : cài dependency.
+- `flutter pub outdated` : kiểm tra version gói.
+- `flutter analyze` : phân tích static.

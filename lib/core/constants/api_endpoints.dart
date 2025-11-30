@@ -4,7 +4,7 @@
 class ApiEndpoints {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://cf6f65324bfa.ngrok-free.app/api/v1',
+    defaultValue: '',
   );
 
   // Auth
