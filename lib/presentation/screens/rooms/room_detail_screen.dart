@@ -687,6 +687,7 @@ class _BottomCTA extends StatelessWidget {
         extra: BookingRequestPayload(
           type: bookingType,
           roomId: room.id,
+          roomCode: room.roomCode,
         ),
       );
     }

@@ -1,11 +1,13 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import '../../data/models/notification_model.dart';
 import '../../data/repositories/bill_repository.dart';
 import '../../data/repositories/booking_repository.dart';
 import '../../data/repositories/repair_repository.dart';
 import '../../data/repositories/payment_repository.dart';
 import '../../data/repositories/room_repository.dart';
 import '../../data/repositories/review_repository.dart';
+import '../../data/models/notification_model.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/bill/bill_bloc.dart';
 import '../bloc/repair/repair_bloc.dart';
@@ -22,6 +24,7 @@ import '../screens/bookings/return_room_screen.dart';
 import '../screens/bills/bill_detail_screen.dart';
 import '../screens/bills/bills_screen.dart';
 import '../screens/notifications/notifications_screen.dart';
+import '../screens/notifications/notification_detail_screen.dart';
 import '../screens/repairs/repair_request_screen.dart';
 import '../screens/repairs/repairs_screen.dart';
 import '../screens/profile/profile_screen.dart';
@@ -96,6 +99,7 @@ class AppRouter {
                     initialType:
                         payload?.type ?? BookingRequestType.registration,
                     roomId: payload?.roomId,
+                    roomCode: payload?.roomCode,
                   );
                 },
               ),
@@ -150,6 +154,20 @@ class AppRouter {
             path: 'notifications',
             name: 'notifications',
             builder: (context, state) => const NotificationsScreen(),
+            routes: [
+              GoRoute(
+                path: ':id',
+                name: 'notificationDetail',
+                builder: (context, state) {
+                  final id = int.tryParse(state.pathParameters['id'] ?? '');
+                  final extra = state.extra;
+                  return NotificationDetailScreen(
+                    id: id,
+                    notification: extra is NotificationModel ? extra : null,
+                  );
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: 'profile',

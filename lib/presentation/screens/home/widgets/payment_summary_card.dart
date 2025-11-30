@@ -25,7 +25,9 @@ class PaymentSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (activeBooking == null) {
+    final billSummary = _readBill(billState);
+
+    if (activeBooking == null && billSummary.statusLabel == null) {
       return CustomCard(
         padding: const EdgeInsets.all(AppSizes.paddingLarge),
         child: Column(
@@ -48,10 +50,9 @@ class PaymentSummaryCard extends StatelessWidget {
       );
     }
 
-    final room = activeBooking!.room;
+    final room = activeBooking?.room;
     final roomPrice = room?.pricePerMonth;
     final services = room?.services ?? <ServiceEntity>[];
-    final billSummary = _readBill(billState);
 
     return CustomCard(
       padding: const EdgeInsets.all(AppSizes.paddingLarge),
@@ -93,13 +94,14 @@ class PaymentSummaryCard extends StatelessWidget {
             ),
           ],
           const SizedBox(height: AppSizes.paddingMedium),
-          _ServiceLine(
-            icon: Icons.attach_money_rounded,
-            label: 'Giá phòng / tháng',
-            value: roomPrice != null ? '${roomPrice.toStringAsFixed(0)} đ' : 'Chưa rõ',
-          ),
+          if (roomPrice != null)
+            _ServiceLine(
+              icon: Icons.attach_money_rounded,
+              label: 'Giá phòng / tháng',
+              value: '${roomPrice.toStringAsFixed(0)} đ',
+            ),
           ...services.take(3).map(
-                (service) => _ServiceLine(
+            (service) => _ServiceLine(
               icon: _serviceIcon(service.name),
               label: service.name,
               value: '${service.unitPrice.toStringAsFixed(0)} đ/${service.unit}',
@@ -227,9 +229,9 @@ class _ServiceLine extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: const Color(0xFF1F2430),
-              fontWeight: FontWeight.w700,
-            ),
+                  color: const Color(0xFF1F2430),
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),
@@ -256,9 +258,9 @@ class _DuePill extends StatelessWidget {
           Text(
             days >= 0 ? 'Còn $days ngày' : 'Quá hạn ${days.abs()} ngày',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppColors.primary,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: AppColors.primary,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ],
       ),

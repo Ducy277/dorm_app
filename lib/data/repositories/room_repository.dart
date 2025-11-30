@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import '../../core/constants/api_endpoints.dart';
 import '../../core/error/exceptions.dart';
 import '../../core/error/failures.dart';
+import '../../presentation/bloc/room/room_bloc.dart';
 import '../datasources/api_service.dart';
 import '../models/paginated_response.dart';
 import '../models/room_model.dart';
@@ -17,12 +18,12 @@ class RoomRepository {
 
   /// Lấy danh sách phòng (kèm phân trang mặc định của Laravel).
   Future<Either<Failure, PaginatedResponse<RoomModel>>> getRooms({
-    int page = 1,
+    required Map<String, dynamic> queryParameters,
   }) async {
     try {
       final response = await apiService.getRequest(
         ApiEndpoints.rooms,
-        queryParameters: {'page': page},
+        queryParameters: queryParameters,
       );
 
       final map = _ensurePaginatedMap(response.data);

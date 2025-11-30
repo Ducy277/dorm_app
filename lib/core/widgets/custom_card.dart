@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
-/// Th��� tA1y ch��%nh dA1ng �`��� hi���n th��< thA'ng tin phA�ng, hA3a �`��n, v.v.
 class CustomCard extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;

@@ -31,10 +31,8 @@ class ApiService {
           return handler.next(options);
         },
         onError: (DioException error, handler) async {
-          // Xử lý lỗi 401: token hết hạn hoặc không hợp lệ
           if (error.response?.statusCode == 401) {
             await secureStorage.deleteToken();
-            // Có thể thêm logic chuyển hướng đến trang đăng nhập bằng cách phát sự kiện qua Bloc
           }
           return handler.next(error);
         },

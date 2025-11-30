@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_sizes.dart';
+import '../../../data/models/notification_model.dart';
 import '../../bloc/auth/auth_bloc.dart';
 import '../../bloc/bill/bill_bloc.dart';
 import '../../bloc/my_room/my_room_bloc.dart';
@@ -66,61 +67,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return 0;
     });
 
-    return Scaffold(
-      key: _scaffoldKey,
-      drawer: SidebarDrawer(onNavigate: (route) {
-        Navigator.pop(context);
-        context.go(route);
-      }),
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _refreshAll,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              BlocBuilder<MyRoomBloc, MyRoomState>(
-                builder: (context, myRoomState) {
-                  final activeBooking = myRoomState is MyRoomLoaded ? myRoomState.activeBooking : null;
-                  return HeaderSection(
-                    userName: isAuthenticated ? (authState as AuthAuthenticated).user.name : 'Bạn',
-                    activeBooking: activeBooking,
-                    notificationCount: notificationCount,
-                    onAvatarTap: () => _scaffoldKey.currentState?.openDrawer(),
-                    onNotificationTap: () {
+    return BlocListener<AuthBloc, AuthState>(
+      listenWhen: (previous, current) =>
+          current is AuthUnauthenticated && previous is! AuthUnauthenticated,
+      listener: (context, state) {
+        context.go('/login');
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        drawer: SidebarDrawer(onNavigate: (route) {
+          Navigator.pop(context);
+          context.go(route);
+        }),
+        body: SafeArea(
+          child: RefreshIndicator(
+            onRefresh: _refreshAll,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                BlocBuilder<MyRoomBloc, MyRoomState>(
+                  builder: (context, myRoomState) {
+                    final activeBooking = myRoomState is MyRoomLoaded ? myRoomState.activeBooking : null;
+                    return HeaderSection(
+                      userName: isAuthenticated ? (authState).user.name : 'Bạn',
+                      activeBooking: activeBooking,
+                      notificationCount: notificationCount,
+                      onAvatarTap: () => _scaffoldKey.currentState?.openDrawer(),
+                      onNotificationTap: () {
+                        if (!isAuthenticated) {
+                          _requireLogin();
+                          return;
+                        }
+                        context.go('/notifications');
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: AppSizes.paddingMedium),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
+                  child: BlocBuilder<NotificationBloc, NotificationState>(
+                    builder: (context, state) {
                       if (!isAuthenticated) {
-                        _requireLogin();
-                        return;
+                        return const SizedBox.shrink();
                       }
-                      context.go('/notifications');
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: AppSizes.paddingMedium),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSizes.paddingMedium),
-                child: BlocBuilder<NotificationBloc, NotificationState>(
-                  builder: (context, state) {
-                    if (!isAuthenticated) {
-                      return const SizedBox.shrink();
-                    }
-                    if (state is NotificationLoading) {
-                      return const QuickNotificationShimmer();
-                    }
-                    if (state is NotificationsLoaded && state.notifications.isNotEmpty) {
-                      final sorted = [...state.notifications]
-                        ..sort((a, b) {
-                          final aDate = DateTime.tryParse(a.createdAt);
-                          final bDate = DateTime.tryParse(b.createdAt);
-                          if (aDate != null && bDate != null) {
-                            return bDate.compareTo(aDate);
-                          }
-                          return b.createdAt.compareTo(a.createdAt);
-                        });
-                      final items = sorted.take(3).toList();
+                      if (state is NotificationLoading) {
+                        return const QuickNotificationShimmer();
+                      }
+                      if (state is NotificationsLoaded && state.notifications.isNotEmpty) {
+                        final sorted = [...state.notifications]
+                          ..sort((a, b) {
+                            final aDate = DateTime.tryParse(a.createdAt);
+                            final bDate = DateTime.tryParse(b.createdAt);
+                            if (aDate != null && bDate != null) {
+                              return bDate.compareTo(aDate);
+                            }
+                            return b.createdAt.compareTo(a.createdAt);
+                          });
+                        final items = sorted.take(3).toList();
                       return QuickNotifications(
                         notifications: items,
-                        onTap: (id) => context.go('/notifications/$id'),
+                        onTap: (id) {
+                          final notif = items.firstWhere(
+                            (n) => n.id == id,
+                            orElse: () => items.first,
+                          );
+                          context.push('/notifications/$id', extra: notif);
+                        },
                       );
                     }
                     return const SizedBox.shrink();
@@ -178,6 +191,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
       ),
+      )
     );
   }
 }

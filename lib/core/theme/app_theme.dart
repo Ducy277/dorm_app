@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../constants/app_colors.dart';
 
-/// �?��<nh ngh�ca ch�� �`��? giao di���n cho ��cng d���ng s��- d���ng Material 3.
 class AppTheme {
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,

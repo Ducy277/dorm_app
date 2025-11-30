@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Hi���n th��< vA�ng trA�n t���i trung tA�m.
 class LoadingIndicator extends StatelessWidget {
   final double size;
   final bool centered;

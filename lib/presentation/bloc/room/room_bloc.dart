@@ -38,9 +38,9 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
   }
 
   Future<void> _onFetchRooms(
-    FetchRooms event,
-    Emitter<RoomState> emit,
-  ) async {
+      FetchRooms event,
+      Emitter<RoomState> emit,
+      ) async {
     final currentState = state;
     if (currentState is RoomsLoaded && !event.showLoading) {
       emit(currentState.copyWith(isRefreshing: true));
@@ -50,18 +50,26 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
 
     _currentPage = 1;
     _hasMore = true;
-    final result = await roomRepository.getRooms(page: _currentPage);
+
+    final queryParams = _buildRoomQueryParams(_currentPage);
+
+    final result = await roomRepository.getRooms(
+      queryParameters: queryParams,
+    );
+
     result.fold(
-      (failure) => emit(RoomError(message: failure.message)),
-      (paginated) {
+          (failure) => emit(RoomError(message: failure.message)),
+          (paginated) {
         _allRooms
           ..clear()
           ..addAll(_markFavourites(paginated.data));
+
         _currentPage = paginated.currentPage;
         _hasMore = paginated.hasMore;
+
         emit(
           RoomsLoaded(
-            rooms: _applyFilters(),
+            rooms: List<RoomModel>.unmodifiable(_allRooms),
             filters: _filters,
             currentPage: _currentPage,
             hasMore: _hasMore,
@@ -72,26 +80,32 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
   }
 
   Future<void> _onLoadMoreRooms(
-    LoadMoreRooms event,
-    Emitter<RoomState> emit,
-  ) async {
+      LoadMoreRooms event,
+      Emitter<RoomState> emit,
+      ) async {
     final currentState = state;
     if (currentState is! RoomsLoaded) return;
     if (!currentState.hasMore || currentState.isLoadingMore) return;
 
     emit(currentState.copyWith(isLoadingMore: true));
-    final nextPage = currentState.currentPage + 1;
 
-    final result = await roomRepository.getRooms(page: nextPage);
+    final nextPage = currentState.currentPage + 1;
+    final queryParams = _buildRoomQueryParams(nextPage);
+
+    final result = await roomRepository.getRooms(
+      queryParameters: queryParams,
+    );
+
     result.fold(
-      (failure) => emit(RoomError(message: failure.message)),
-      (paginated) {
+          (failure) => emit(RoomError(message: failure.message)),
+          (paginated) {
         _mergeRooms(paginated.data);
         _currentPage = paginated.currentPage;
         _hasMore = paginated.hasMore;
+
         emit(
           currentState.copyWith(
-            rooms: _applyFilters(),
+            rooms: List<RoomModel>.unmodifiable(_allRooms),
             currentPage: _currentPage,
             hasMore: _hasMore,
             isLoadingMore: false,
@@ -102,15 +116,45 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     );
   }
 
-  Future<void> _onUpdateRoomFilters(
-    UpdateRoomFilters event,
-    Emitter<RoomState> emit,
-  ) async {
-    _filters = event.filters;
-    final currentState = state;
-    if (currentState is RoomsLoaded) {
-      emit(currentState.copyWith(rooms: _applyFilters(), filters: _filters));
+  Map<String, dynamic> _buildRoomQueryParams(int page) {
+    final params = <String, dynamic>{
+      'page': page,
+      'per_page': 10,
+    };
+
+    // search
+    if (_filters.searchQuery.isNotEmpty) {
+      params['q'] = _filters.searchQuery;
     }
+
+    if (_filters.onlyAvailable) {
+      params['available_only'] = '1';
+    }
+
+    if (_filters.minPrice != null) {
+      params['min_price'] = _filters.minPrice!.toInt();
+    }
+    if (_filters.maxPrice != null) {
+      params['max_price'] = _filters.maxPrice!.toInt();
+    }
+
+    if (_filters.branchId != null) {
+      params['branch_id'] = _filters.branchId;
+    }
+
+    if (_filters.gender != null && _filters.gender!.isNotEmpty) {
+      params['gender_type'] = _filters.gender;
+    }
+
+    return params;
+  }
+
+  Future<void> _onUpdateRoomFilters(
+      UpdateRoomFilters event,
+      Emitter<RoomState> emit,
+      ) async {
+    _filters = event.filters;
+    add(FetchRooms(showLoading: false));
   }
 
   Future<void> _onFetchRoomDetail(
@@ -210,43 +254,6 @@ class RoomBloc extends Bloc<RoomEvent, RoomState> {
     }
   }
 
-  List<RoomModel> _applyFilters() {
-    Iterable<RoomModel> filtered = _allRooms;
-    if (_filters.onlyAvailable) {
-      filtered = filtered.where((room) => room.availableSlots > 0);
-    }
-    if (_filters.minPrice != null) {
-      filtered = filtered.where((room) => room.pricePerMonth >= _filters.minPrice!);
-    }
-    if (_filters.maxPrice != null) {
-      filtered =
-          filtered.where((room) => room.pricePerMonth <= _filters.maxPrice!);
-    }
-    if (_filters.branch != null && _filters.branch!.isNotEmpty) {
-      final branchLower = _filters.branch!.toLowerCase();
-      filtered = filtered.where(
-        (room) => (room.branchName ?? '').toLowerCase().contains(branchLower),
-      );
-    }
-    if (_filters.gender != null && _filters.gender!.isNotEmpty) {
-      final g = _filters.gender!.toLowerCase();
-      filtered = filtered.where((room) {
-        final gender = (room.genderType ?? '').toLowerCase();
-        return gender == g;
-      });
-    }
-    if (_filters.searchQuery.isNotEmpty) {
-      final query = _filters.searchQuery.toLowerCase();
-      filtered = filtered.where(
-        (room) =>
-            room.roomCode.toLowerCase().contains(query) ||
-            (room.branchName?.toLowerCase().contains(query) ?? false) ||
-            (room.floorName?.toLowerCase().contains(query) ?? false),
-      );
-    }
-    return List<RoomModel>.unmodifiable(filtered.toList());
-  }
-
   void _mergeRooms(List<RoomModel> newRooms) {
     for (final room in _markFavourites(newRooms)) {
       final index = _allRooms.indexWhere((r) => r.id == room.id);
@@ -279,7 +286,7 @@ class RoomFilters extends Equatable {
   final bool onlyAvailable;
   final double? minPrice;
   final double? maxPrice;
-  final String? branch;
+  final int? branchId;
   final String? gender;
 
   const RoomFilters({
@@ -287,7 +294,7 @@ class RoomFilters extends Equatable {
     this.onlyAvailable = false,
     this.minPrice,
     this.maxPrice,
-    this.branch,
+    this.branchId,
     this.gender,
   });
 
@@ -298,7 +305,7 @@ class RoomFilters extends Equatable {
     double? maxPrice,
     bool clearMaxPrice = false,
     bool clearMinPrice = false,
-    String? branch,
+    int? branchId,
     bool clearBranch = false,
     String? gender,
     bool clearGender = false,
@@ -308,11 +315,11 @@ class RoomFilters extends Equatable {
       onlyAvailable: onlyAvailable ?? this.onlyAvailable,
       minPrice: clearMinPrice ? null : (minPrice ?? this.minPrice),
       maxPrice: clearMaxPrice ? null : (maxPrice ?? this.maxPrice),
-      branch: clearBranch ? null : (branch ?? this.branch),
+      branchId: clearBranch ? null : (branchId ?? this.branchId),
       gender: clearGender ? null : (gender ?? this.gender),
     );
   }
 
   @override
-  List<Object?> get props => [searchQuery, onlyAvailable, minPrice, maxPrice, branch, gender];
+  List<Object?> get props => [searchQuery, onlyAvailable, minPrice, maxPrice, branchId, gender];
 }

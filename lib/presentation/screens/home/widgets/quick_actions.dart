@@ -41,8 +41,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions> {
         Text('Tiện ích nhanh', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: AppSizes.paddingSmall),
         SizedBox(
-          // height: 210,
-          height: 280, // hoặc 270–290 tuỳ bạn thử
+          height: 280,
           child: PageView.builder(
             controller: _controller,
             itemCount: totalPages,
@@ -62,14 +61,13 @@ class _HomeQuickActionsState extends State<HomeQuickActions> {
             },
           ),
         ),
-        // phần indicator giữ nguyên
         if (totalPages > 1) ...[
           const SizedBox(height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(
               totalPages,
-                  (index) => AnimatedContainer(
+              (index) => AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
                 margin: const EdgeInsets.symmetric(horizontal: 4),
                 height: 6,
@@ -109,7 +107,7 @@ class _HomeQuickActionsState extends State<HomeQuickActions> {
         label: 'Hóa đơn',
         color: const Color(0xFF009688),
         requiresLogin: true,
-        requiresActiveRoom: true,
+        requiresActiveRoom: false,
         onTap: () => widget.onNavigate('/bills'),
       ),
       _ActionData(
@@ -120,14 +118,14 @@ class _HomeQuickActionsState extends State<HomeQuickActions> {
         requiresActiveRoom: true,
         onTap: () => widget.onNavigate('/repairs'),
       ),
-      _ActionData(
-      icon: Icons.logout,
-      label: 'Trả phòng',
-      color: const Color(0xFF6D4C41),
-      requiresLogin: true,
-      requiresActiveRoom: true,
-      onTap: () => widget.onNavigate('/bookings/return'),
-      ),
+        _ActionData(
+        icon: Icons.logout,
+        label: 'Trả phòng',
+        color: const Color(0xFF6D4C41),
+        requiresLogin: true,
+        requiresActiveRoom: true,
+        onTap: () => widget.onNavigate('/bookings/return'),
+        ),
     ].map((action) {
       final lockedLogin = action.requiresLogin && !widget.isAuthenticated;
       final lockedRoom = action.requiresActiveRoom && !hasActive;
@@ -136,8 +134,8 @@ class _HomeQuickActionsState extends State<HomeQuickActions> {
         lockReason: lockedLogin
             ? 'Cần đăng nhập'
             : lockedRoom
-            ? 'Chưa có phòng'
-            : null,
+                ? 'Chưa có phòng'
+                : null,
         onTap: () {
           if (lockedLogin) {
             widget.onRequireLogin();
@@ -167,9 +165,7 @@ class _ActionItem extends StatelessWidget {
           color: data.isLocked ? Colors.white : AppColors.primary.withOpacity(0.02),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: data.isLocked
-                ? Colors.black12
-                : data.color.withOpacity(0.18),
+            color: data.isLocked ? Colors.black12 : data.color.withOpacity(0.18),
           ),
         ),
         padding: const EdgeInsets.all(AppSizes.paddingSmall - 2),
@@ -202,9 +198,9 @@ class _ActionItem extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: data.isLocked ? Colors.grey : const Color(0xFF1F2430),
-                fontWeight: FontWeight.w600,
-              ),
+                    color: data.isLocked ? Colors.grey : const Color(0xFF1F2430),
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
             if (data.isLocked && data.lockReason != null) ...[
               const SizedBox(height: 4),

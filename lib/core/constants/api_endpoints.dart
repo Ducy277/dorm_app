@@ -2,10 +2,9 @@
 /// Các giá trị này dựa trên file `api_routes.json` từ backend Laravel và
 /// được chuyển sang dạng RESTful (điền thêm tiền tố /api khi cần).
 class ApiEndpoints {
-  // Đường dẫn cơ sở (sẽ được lấy từ cấu hình hoặc .env trong thực tế)
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: '',
+    defaultValue: 'https://cf6f65324bfa.ngrok-free.app/api/v1',
   );
 
   // Auth

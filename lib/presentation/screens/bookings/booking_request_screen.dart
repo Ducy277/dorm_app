@@ -33,11 +33,13 @@ extension on BookingRequestType {
 class BookingRequestScreen extends StatefulWidget {
   final BookingRequestType initialType;
   final int? roomId;
+  final String? roomCode;
 
   const BookingRequestScreen({
     super.key,
     this.initialType = BookingRequestType.registration,
     this.roomId,
+    this.roomCode,
   });
 
   @override
@@ -48,27 +50,38 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final _roomIdController = TextEditingController();
   final _checkInController = TextEditingController();
-  final _checkOutController = TextEditingController();
+  final _durationController = TextEditingController();
   final _noteController = TextEditingController();
 
   BookingRequestType _selectedType = BookingRequestType.registration;
   String _rentalType = 'monthly';
   bool _isSubmitting = false;
+  int? _selectedRoomId;
+  String? _selectedRoomCode;
+  String? _computedExpectedCheckOut;
 
   @override
   void initState() {
     super.initState();
     _selectedType = widget.initialType;
-    if (widget.roomId != null) {
-      _roomIdController.text = widget.roomId.toString();
+    _selectedRoomId = widget.roomId;
+    _selectedRoomCode = widget.roomCode;
+
+    if (_selectedRoomCode != null && _selectedRoomCode!.isNotEmpty) {
+      _roomIdController.text = _selectedRoomCode!;
+    } else if (_selectedRoomId != null) {
+      _roomIdController.text = _selectedRoomId.toString();
     }
+
+    _checkInController.addListener(_updateExpectedCheckout);
+    _durationController.addListener(_updateExpectedCheckout);
   }
 
   @override
   void dispose() {
     _roomIdController.dispose();
     _checkInController.dispose();
-    _checkOutController.dispose();
+    _durationController.dispose();
     _noteController.dispose();
     super.dispose();
   }
@@ -85,6 +98,40 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
       final formatted =
           '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       controller.text = formatted;
+      _updateExpectedCheckout();
+    }
+  }
+
+  void _updateExpectedCheckout({bool notify = true}) {
+    final checkIn = DateTime.tryParse(_checkInController.text.trim());
+    final durationRaw = _durationController.text.trim();
+    final duration = int.tryParse(durationRaw);
+    if (checkIn == null || duration == null || duration <= 0) {
+      if (notify) {
+        setState(() => _computedExpectedCheckOut = null);
+      } else {
+        _computedExpectedCheckOut = null;
+      }
+      return;
+    }
+
+    DateTime expected;
+    if (_rentalType == 'monthly') {
+      final month = checkIn.month + duration;
+      final yearAddition = (month - 1) ~/ 12;
+      final newMonth = ((month - 1) % 12) + 1;
+      final day = checkIn.day;
+      expected = DateTime(checkIn.year + yearAddition, newMonth, day);
+    } else {
+      expected = checkIn.add(Duration(days: duration));
+    }
+
+    final formatted =
+        '${expected.year.toString().padLeft(4, '0')}-${expected.month.toString().padLeft(2, '0')}-${expected.day.toString().padLeft(2, '0')}';
+    if (notify) {
+      setState(() => _computedExpectedCheckOut = formatted);
+    } else {
+      _computedExpectedCheckOut = formatted;
     }
   }
 
@@ -116,7 +163,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
       _rentalType = activeBooking?.rentalType ?? _rentalType;
     }
 
-    int? roomId = int.tryParse(_roomIdController.text.trim());
+    int? roomId = _selectedRoomId ?? int.tryParse(_roomIdController.text.trim());
     if (_selectedType == BookingRequestType.extension) {
       roomId = activeBooking?.roomId;
     }
@@ -147,18 +194,11 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
       }
     }
 
-    if (_selectedType == BookingRequestType.registration && _rentalType == 'monthly') {
-      final checkIn = DateTime.tryParse(_checkInController.text.trim());
-      final checkOut = DateTime.tryParse(_checkOutController.text.trim());
-      if (checkIn != null && checkOut != null) {
-        final diffMonths = (checkOut.year - checkIn.year) * 12 + (checkOut.month - checkIn.month);
-        if (diffMonths < 1) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Thuê theo tháng phải lớn hơn 1 tháng.')),
-          );
-          return;
-        }
-      }
+    if (_computedExpectedCheckOut == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập ngày vào và số ngày/tháng hợp lệ.')),
+      );
+      return;
     }
 
     setState(() => _isSubmitting = true);
@@ -167,7 +207,7 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
             roomId: roomId,
             bookingType: _selectedType.apiValue,
             checkInDate: _checkInController.text.trim(),
-            expectedCheckOutDate: _checkOutController.text.trim(),
+            expectedCheckOutDate: _computedExpectedCheckOut ?? '',
             rentalType: _rentalType,
             reason: _noteController.text.trim().isNotEmpty
                 ? _noteController.text.trim()
@@ -201,6 +241,18 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
         final isExtension = _selectedType == BookingRequestType.extension;
         final isTransfer = _selectedType == BookingRequestType.transfer;
 
+        if ((isExtension || isTransfer) &&
+            activeBooking != null &&
+            _rentalType != activeBooking.rentalType) {
+          _rentalType = activeBooking.rentalType;
+          _updateExpectedCheckout(notify: false);
+        }
+        if (isExtension && activeBooking != null) {
+          _selectedRoomId = activeBooking.roomId;
+          _selectedRoomCode = activeBooking.room?.roomCode;
+          _roomIdController.text = _selectedRoomCode ?? activeBooking.roomId.toString();
+        }
+
         return Scaffold(
           appBar: AppBar(
             title: Text('Yêu cầu ${_selectedType.label.toLowerCase()}'),
@@ -213,49 +265,56 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
                 key: _formKey,
                 child: ListView(
                   children: [
-                    Text(
-                      'Chọn loại yêu cầu',
-                      style: Theme.of(context).textTheme.titleMedium,
+                    _RoomCodeHeader(
+                      isReadOnly: _selectedRoomId != null,
+                      controller: _roomIdController,
+                      isTransfer: isTransfer,
                     ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: BookingRequestType.values.map((type) {
-                        final selected = _selectedType == type;
-                        return ChoiceChip(
-                          label: Text(type.label),
-                          selected: selected,
-                          onSelected: (_) {
-                            setState(() => _selectedType = type);
-                          },
-                        );
-                      }).toList(),
-                    ),
-                    const SizedBox(height: 16),
-                    if (isExtension && activeBooking != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Phòng hiện tại', style: Theme.of(context).textTheme.titleMedium),
-                          const SizedBox(height: 6),
-                          Text('Phòng ${activeBooking.room?.roomCode ?? activeBooking.roomId}'),
-                        ],
-                      )
-                    else
-                      TextFormField(
-                        controller: _roomIdController,
-                        keyboardType: TextInputType.number,
-                        decoration: InputDecoration(
-                          labelText: isTransfer ? 'ID phòng mới' : 'ID phòng',
-                          hintText: isTransfer ? 'Nhập mã phòng mới (số)' : 'Nhập mã phòng (số)',
-                        ),
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'Vui lòng nhập phòng';
-                          }
-                          return null;
-                        },
+                    if (isTransfer && activeBooking != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Phòng hiện tại: ${activeBooking.room?.roomCode ?? activeBooking.roomId}',
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(color: Colors.grey[700]),
                       ),
+                    ],
+                    const SizedBox(height: 16),
+                    _DropdownSection<BookingRequestType>(
+                      label: 'Loại yêu cầu',
+                      value: _selectedType,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setState(() => _selectedType = value);
+                      },
+                      items: BookingRequestType.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.label),
+                            ),
+                          )
+                          .toList(),
+                    ),
+                    const SizedBox(height: 12),
+                    _DropdownSection<String>(
+                      label: 'Hình thức thuê',
+                      value: _rentalType,
+                      onChanged: (value) {
+                        if (value == null) return;
+                        if ((isExtension || isTransfer) && activeBooking != null) return;
+                        setState(() {
+                          _rentalType = value;
+                          _updateExpectedCheckout();
+                        });
+                      },
+                      items: const [
+                        DropdownMenuItem(value: 'monthly', child: Text('Theo tháng')),
+                        DropdownMenuItem(value: 'daily', child: Text('Theo ngày')),
+                      ],
+                      enabled: !(isExtension || isTransfer) || activeBooking == null,
+                    ),
                     const SizedBox(height: 12),
                     _DateField(
                       controller: _checkInController,
@@ -263,33 +322,23 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
                       onPick: () => _pickDate(_checkInController),
                     ),
                     const SizedBox(height: 12),
-                    _DateField(
-                      controller: _checkOutController,
-                      label: 'Ngày trả dự kiến',
-                      onPick: () => _pickDate(_checkOutController),
+                    _DurationField(
+                      controller: _durationController,
+                      rentalType: _rentalType,
                     ),
-                    const SizedBox(height: 12),
-                    Text('Hình thức thuê', style: Theme.of(context).textTheme.titleMedium),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        ChoiceChip(
-                          label: const Text('Theo tháng'),
-                          selected: _rentalType == 'monthly',
-                          onSelected: _selectedType == BookingRequestType.registration
-                              ? (_) => setState(() => _rentalType = 'monthly')
-                              : null,
-                        ),
-                        ChoiceChip(
-                          label: const Text('Theo ngày'),
-                          selected: _rentalType == 'daily',
-                          onSelected: _selectedType == BookingRequestType.registration
-                              ? (_) => setState(() => _rentalType = 'daily')
-                              : null,
-                        ),
-                      ],
-                    ),
+                    if (_computedExpectedCheckOut != null) ...[
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Ngày trả dự kiến'),
+                          Text(
+                            _computedExpectedCheckOut ?? '',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _noteController,
@@ -327,11 +376,131 @@ class _BookingRequestScreenState extends State<BookingRequestScreen> {
 class BookingRequestPayload {
   final BookingRequestType type;
   final int? roomId;
+  final String? roomCode;
 
   const BookingRequestPayload({
     this.type = BookingRequestType.registration,
     this.roomId,
+    this.roomCode,
   });
+}
+
+class _RoomCodeHeader extends StatelessWidget {
+  final bool isReadOnly;
+  final TextEditingController controller;
+  final bool isTransfer;
+
+  const _RoomCodeHeader({
+    required this.isReadOnly,
+    required this.controller,
+    this.isTransfer = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blueAccent.withOpacity(0.3)),
+        color: Colors.blueAccent.withOpacity(0.06),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            isTransfer ? 'Mã phòng mới' : 'Mã phòng',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: controller,
+            readOnly: isReadOnly,
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              hintText: 'Nhập mã phòng (ví dụ: A0103)',
+              suffixIcon: isReadOnly ? const Icon(Icons.lock_outline) : null,
+            ),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Vui lòng nhập mã phòng';
+              }
+              return null;
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DropdownSection<T> extends StatelessWidget {
+  final String label;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?> onChanged;
+  final bool enabled;
+
+  const _DropdownSection({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 6),
+        DropdownButtonFormField<T>(
+          value: value,
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          items: items,
+          onChanged: enabled ? onChanged : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _DurationField extends StatelessWidget {
+  final TextEditingController controller;
+  final String rentalType;
+
+  const _DurationField({
+    required this.controller,
+    required this.rentalType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isMonthly = rentalType == 'monthly';
+    final label = isMonthly ? 'Số tháng thuê' : 'Số ngày thuê';
+    final hint = isMonthly ? 'Ví dụ: 1 (tháng)' : 'Ví dụ: 7 (ngày)';
+
+    return TextFormField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: const OutlineInputBorder(),
+      ),
+      validator: (value) {
+        final raw = value?.trim() ?? '';
+        final number = int.tryParse(raw);
+        if (raw.isEmpty) return 'Vui lòng nhập $label';
+        if (number == null || number <= 0) return '$label phải lớn hơn 0';
+        return null;
+      },
+    );
+  }
 }
 
 class _DateField extends StatelessWidget {

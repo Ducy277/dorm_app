@@ -19,8 +19,9 @@ class BillDetailScreen extends StatefulWidget {
   State<BillDetailScreen> createState() => _BillDetailScreenState();
 }
 
-class _BillDetailScreenState extends State<BillDetailScreen> {
+class _BillDetailScreenState extends State<BillDetailScreen> with WidgetsBindingObserver {
   bool _hasLoaded = false;
+  bool _refreshOnResume = false;
 
   @override
   void didChangeDependencies() {
@@ -36,6 +37,26 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _refreshOnResume) {
+      _refreshOnResume = false;
+      _refresh();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Chi tiết hóa đơn')),
@@ -48,6 +69,9 @@ class _BillDetailScreenState extends State<BillDetailScreen> {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Không mở được trang thanh toán.')),
               );
+            } else {
+              // Khi quay lại app sau khi thanh toán, tự refresh chi tiết hóa đơn
+              _refreshOnResume = true;
             }
           } else if (state is BillError) {
             ScaffoldMessenger.of(context).showSnackBar(

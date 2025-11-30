@@ -94,8 +94,8 @@ class SidebarDrawer extends StatelessWidget {
                           iconColor: Colors.red,
                           textColor: Colors.red,
                           onTap: () {
+                            Navigator.of(context).pop();
                             context.read<AuthBloc>().add(const LogoutRequested());
-                            onNavigate('/login');
                           },
                         ),
                     ],

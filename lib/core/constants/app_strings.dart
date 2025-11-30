@@ -1,4 +1,3 @@
-/// Chuỗi tĩnh dùng trong ứng dụng, hỗ trợ đa ngôn ngữ.
 class AppStrings {
   // Chung
   static const String appName = 'Quản lý Ký túc xá';

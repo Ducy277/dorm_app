@@ -26,7 +26,6 @@ class QuickNotifications extends StatelessWidget {
         ),
         const SizedBox(height: AppSizes.paddingSmall),
 
-        // Tăng nhẹ chiều cao cho chắc, khỏi overflow
         SizedBox(
           height: 140,
           child: ListView.separated(
@@ -78,14 +77,12 @@ class QuickNotifications extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
 
-                      // ❗ Chỉ giữ lại TIÊU ĐỀ
                       Text(
                         item.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
-                      // ❌ Không còn SizedBox + Expanded + content nữa
                     ],
                   ),
                 ),
@@ -108,7 +105,7 @@ class QuickNotificationShimmer extends StatelessWidget {
         2,
             (index) => Expanded(
           child: Container(
-            height: 140, // match với QuickNotifications
+            height: 140,
             margin: EdgeInsets.only(right: index == 1 ? 0 : 12),
             decoration: BoxDecoration(
               color: Colors.black.withOpacity(0.05),

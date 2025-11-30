@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../constants/app_colors.dart';
 import '../constants/app_sizes.dart';
 
-/// NA�t tA1y ch��%nh v��>i mA�u s��_c vA� bA�n kA-nh bo m���c �`��<nh.
 class CustomButton extends StatelessWidget {
   final String label;
   final VoidCallback onPressed;

@@ -57,169 +57,213 @@ class _RoomsScreenState extends State<RoomsScreen> {
     }
   }
 
-  void _onSearchChanged(RoomFilters currentFilters) {
+  void _onSearchChanged(RoomFilters newFilters) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 400), () {
-      final query = _searchController.text.trim();
-      if (query == currentFilters.searchQuery) return;
-      context.read<RoomBloc>().add(
-        UpdateRoomFilters(currentFilters.copyWith(searchQuery: query)),
-      );
+      context.read<RoomBloc>().add(UpdateRoomFilters(newFilters));
     });
   }
 
   void _toggleAvailable(RoomFilters filters, bool value) {
-    context
-        .read<RoomBloc>()
-        .add(UpdateRoomFilters(filters.copyWith(onlyAvailable: value)));
+    context.read<RoomBloc>().add(
+      UpdateRoomFilters(filters.copyWith(onlyAvailable: value)),
+    );
   }
 
   void _setMaxPrice(RoomFilters filters, double? price) {
     context.read<RoomBloc>().add(
       UpdateRoomFilters(
-        filters.copyWith(
-          maxPrice: price,
-          clearMaxPrice: price == null,
-        ),
+        filters.copyWith(maxPrice: price, clearMaxPrice: price == null),
       ),
     );
   }
 
   void _openFilterSheet(RoomsLoaded state) {
-    final branches = state.rooms
-        .map((e) => e.branchName)
-        .whereType<String>()
-        .toSet()
-        .toList()
-      ..sort();
+    // Lấy danh sách chi nhánh (id + name) từ rooms hiện có
+    final branchMap = <int, String>{};
+    for (final room in state.rooms) {
+      if (room.branchId != null && room.branchName != null) {
+        branchMap[room.branchId!] = room.branchName!;
+      }
+    }
+    final branches = branchMap.entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true, // cho phép sheet cao hơn, scroll được
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (context) {
-        String? selectedBranch = state.filters.branch;
+        int? selectedBranch = state.filters.branchId;
         double? selectedPrice = state.filters.maxPrice;
         double? selectedMinPrice = state.filters.minPrice;
         String? selectedGender = state.filters.gender;
+
         RangeValues range = RangeValues(
           (selectedMinPrice ?? 0) / 1000000,
           (selectedPrice ?? 10000000) / 1000000,
         );
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+              child: StatefulBuilder(
+                builder: (context, setModalState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Bộ lọc', style: Theme.of(context).textTheme.titleMedium),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
+                      Row(
+                        children: [
+                          Text(
+                            'Bộ lọc',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: () {
+                              setModalState(() {
+                                selectedBranch = null;
+                                selectedPrice = null;
+                                selectedMinPrice = null;
+                                selectedGender = null;
+                                range = const RangeValues(0, 10);
+                              });
+                            },
+                            child: const Text('Xóa'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+
+                      // 🔽 Chi nhánh: ĐỔI SANG DROPDOWN
+                      Text(
+                        'Chi nhánh',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          border: OutlineInputBorder(),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                        ),
+                        hint: const Text('Chọn chi nhánh'),
+                        value: selectedBranch,
+                        items: branches
+                            .map(
+                              (branch) => DropdownMenuItem<int>(
+                                value: branch.key,
+                                child: Text(branch.value),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
                           setModalState(() {
-                            selectedBranch = null;
-                            selectedPrice = null;
-                            selectedMinPrice = null;
-                            selectedGender = null;
-                            range = const RangeValues(0, 10);
+                            selectedBranch = value;
                           });
                         },
-                        child: const Text('Xóa'),
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Chi nhánh', style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: branches.map((branch) {
-                      final selected = selectedBranch == branch;
-                      return ChoiceChip(
-                        label: Text(branch),
-                        selected: selected,
-                        onSelected: (_) {
-                          setModalState(() => selectedBranch = selected ? null : branch);
+
+                      const SizedBox(height: 16),
+
+                      // Giá
+                      Text(
+                        'Giá theo tháng (0 - 10tr)',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      RangeSlider(
+                        min: 0,
+                        max: 10,
+                        divisions: 20,
+                        values: range,
+                        labels: RangeLabels(
+                          '${range.start.toStringAsFixed(1)}tr',
+                          '${range.end.toStringAsFixed(1)}tr',
+                        ),
+                        onChanged: (val) {
+                          setModalState(() {
+                            range = val;
+                            selectedMinPrice = val.start * 1000000;
+                            selectedPrice = val.end * 1000000;
+                          });
                         },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Giá theo tháng (0 - 10tr)', style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(height: 8),
-                  RangeSlider(
-                    min: 0,
-                    max: 10,
-                    divisions: 20,
-                    values: range,
-                    labels: RangeLabels(
-                      '${range.start.toStringAsFixed(1)}tr',
-                      '${range.end.toStringAsFixed(1)}tr',
-                    ),
-                    onChanged: (val) {
-                      setModalState(() {
-                        range = val;
-                        selectedMinPrice = val.start * 1000000;
-                        selectedPrice = val.end * 1000000;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  Text('Giới tính phòng', style: Theme.of(context).textTheme.bodyMedium),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      ChoiceChip(
-                        label: const Text('Tất cả'),
-                        selected: selectedGender == null,
-                        onSelected: (_) => setModalState(() => selectedGender = null),
                       ),
-                      ChoiceChip(
-                        label: const Text('Nam'),
-                        selected: selectedGender == 'male',
-                        onSelected: (_) => setModalState(() => selectedGender = 'male'),
+
+                      const SizedBox(height: 16),
+
+                      // Giới tính
+                      Text(
+                        'Giới tính phòng',
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
-                      ChoiceChip(
-                        label: const Text('Nữ'),
-                        selected: selectedGender == 'female',
-                        onSelected: (_) => setModalState(() => selectedGender = 'female'),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('Tất cả'),
+                            selected: selectedGender == null,
+                            onSelected: (_) =>
+                                setModalState(() => selectedGender = null),
+                          ),
+                          ChoiceChip(
+                            label: const Text('Nam'),
+                            selected: selectedGender == 'male',
+                            onSelected: (_) =>
+                                setModalState(() => selectedGender = 'male'),
+                          ),
+                          ChoiceChip(
+                            label: const Text('Nữ'),
+                            selected: selectedGender == 'female',
+                            onSelected: (_) =>
+                                setModalState(() => selectedGender = 'female'),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            context.read<RoomBloc>().add(
+                              UpdateRoomFilters(
+                                state.filters.copyWith(
+                                  branchId: selectedBranch,
+                                  clearBranch: selectedBranch == null,
+                                  minPrice: selectedMinPrice,
+                                  clearMinPrice: selectedMinPrice == null,
+                                  maxPrice: selectedPrice,
+                                  clearMaxPrice: selectedPrice == null,
+                                  gender: selectedGender,
+                                  clearGender: selectedGender == null,
+                                ),
+                              ),
+                            );
+                          },
+                          child: const Text('Áp dụng'),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 20),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        context.read<RoomBloc>().add(
-                          UpdateRoomFilters(
-                            state.filters.copyWith(
-                              branch: selectedBranch,
-                              clearBranch: selectedBranch == null,
-                              minPrice: selectedMinPrice,
-                              clearMinPrice: selectedMinPrice == null,
-                              maxPrice: selectedPrice,
-                              clearMaxPrice: selectedPrice == null,
-                              gender: selectedGender,
-                              clearGender: selectedGender == null,
-                            ),
-                          ),
-                        );
-                      },
-                      child: const Text('Áp dụng'),
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );
@@ -247,12 +291,6 @@ class _RoomsScreenState extends State<RoomsScreen> {
           if (state is RoomLoading) {
             return const LoadingIndicator();
           } else if (state is RoomsLoaded) {
-            if (_searchController.text != state.filters.searchQuery) {
-              _searchController.text = state.filters.searchQuery;
-              _searchController.selection = TextSelection.fromPosition(
-                TextPosition(offset: _searchController.text.length),
-              );
-            }
             return Column(
               children: [
                 _FilterBar(
@@ -260,37 +298,41 @@ class _RoomsScreenState extends State<RoomsScreen> {
                   filters: state.filters,
                   onSearchChanged: _onSearchChanged,
                   onToggleAvailable: _toggleAvailable,
-                  onPriceSelected: (price) => _setMaxPrice(state.filters, price),
+                  onPriceSelected: (price) =>
+                      _setMaxPrice(state.filters, price),
                 ),
                 Expanded(
                   child: RefreshIndicator(
                     onRefresh: () async {
-                      context
-                          .read<RoomBloc>()
-                          .add(const FetchRooms(showLoading: false));
+                      context.read<RoomBloc>().add(
+                        const FetchRooms(showLoading: false),
+                      );
                     },
                     child: state.rooms.isEmpty
                         ? const _EmptyState()
                         : ListView.separated(
-                      controller: _scrollController,
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      itemBuilder: (context, index) {
-                        final showLoader =
-                            state.isLoadingMore && index == state.rooms.length;
-                        if (index >= state.rooms.length) {
-                          return _ListLoader(isVisible: showLoader);
-                        }
-                        final room = state.rooms[index];
-                        return _RoomCard(room: room);
-                      },
-                      separatorBuilder: (_, __) => const SizedBox(height: 14),
-                      itemCount: state.rooms.length +
-                          (state.hasMore || state.isLoadingMore ? 1 : 0),
-                    ),
+                            controller: _scrollController,
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            itemBuilder: (context, index) {
+                              final showLoader =
+                                  state.isLoadingMore &&
+                                  index == state.rooms.length;
+                              if (index >= state.rooms.length) {
+                                return _ListLoader(isVisible: showLoader);
+                              }
+                              final room = state.rooms[index];
+                              return _RoomCard(room: room);
+                            },
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(height: 14),
+                            itemCount:
+                                state.rooms.length +
+                                (state.hasMore || state.isLoadingMore ? 1 : 0),
+                          ),
                   ),
                 ),
               ],
@@ -302,10 +344,7 @@ class _RoomsScreenState extends State<RoomsScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      state.message,
-                      textAlign: TextAlign.center,
-                    ),
+                    Text(state.message, textAlign: TextAlign.center),
                     const SizedBox(height: 12),
                     ElevatedButton(
                       onPressed: () =>
@@ -347,11 +386,13 @@ class _FilterBar extends StatelessWidget {
         children: [
           TextField(
             controller: controller,
-            decoration: InputDecoration(
-              hintText: 'Tìm mã phòng, chi nhánh hoặc tầng...',
-              prefixIcon: const Icon(Icons.search),
+            decoration: const InputDecoration(
+              hintText: 'Tìm mã phòng...',
+              prefixIcon: Icon(Icons.search),
             ),
-            onChanged: (_) => onSearchChanged(filters),
+            onChanged: (value) {
+              onSearchChanged(filters.copyWith(searchQuery: value));
+            },
           ),
           const SizedBox(height: 12),
         ],
@@ -379,7 +420,9 @@ class _RoomCard extends StatelessWidget {
 
   double _rating() {
     if (room.reviews.isEmpty) return 0;
-    final total = room.reviews.map((e) => e.rating).fold<int>(0, (a, b) => a + b);
+    final total = room.reviews
+        .map((e) => e.rating)
+        .fold<int>(0, (a, b) => a + b);
     return total / room.reviews.length;
   }
 
@@ -448,7 +491,10 @@ class _RoomCard extends StatelessWidget {
                       left: 12,
                       top: 12,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.85),
                           borderRadius: BorderRadius.circular(12),
@@ -466,7 +512,10 @@ class _RoomCard extends StatelessWidget {
                       right: 12,
                       top: 12,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
                         decoration: BoxDecoration(
                           color: _statusColor().withOpacity(0.9),
                           borderRadius: BorderRadius.circular(12),
@@ -485,7 +534,10 @@ class _RoomCard extends StatelessWidget {
                         left: 12,
                         bottom: 12,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.85),
                             borderRadius: BorderRadius.circular(12),
@@ -518,10 +570,10 @@ class _RoomCard extends StatelessWidget {
                       ),
                       Text(
                         '${room.pricePerMonth.toStringAsFixed(0)} đ/th',
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleSmall
-                            ?.copyWith(color: AppColors.primary, fontWeight: FontWeight.w800),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ],
                   ),
@@ -529,7 +581,9 @@ class _RoomCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.black54),
                     ),
                   ],
                   const SizedBox(height: 10),
@@ -564,14 +618,20 @@ class _RoomCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         ...amenities.map(
-                              (a) => Chip(
-                            label: Text(a.name, style: const TextStyle(fontSize: 12)),
+                          (a) => Chip(
+                            label: Text(
+                              a.name,
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             visualDensity: VisualDensity.compact,
                           ),
                         ),
                         if (extraAmenities > 0)
                           Chip(
-                            label: Text('+$extraAmenities', style: const TextStyle(fontSize: 12)),
+                            label: Text(
+                              '+$extraAmenities',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                             visualDensity: VisualDensity.compact,
                           ),
                       ],
@@ -582,13 +642,18 @@ class _RoomCard extends StatelessWidget {
                       const Icon(Icons.star, color: Colors.amber, size: 18),
                       const SizedBox(width: 4),
                       Text(
-                        rating > 0 ? rating.toStringAsFixed(1) : 'Chưa có đánh giá',
+                        rating > 0
+                            ? rating.toStringAsFixed(1)
+                            : 'Chưa có đánh giá',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       if (rating > 0) ...[
                         const SizedBox(width: 6),
-                        Text('(${room.reviews.length})',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.black54)),
+                        Text(
+                          '(${room.reviews.length})',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.black54),
+                        ),
                       ],
                     ],
                   ),
@@ -606,11 +671,13 @@ class _ImagePlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        gradient: AppGradients.heroBlue,
-      ),
+      decoration: const BoxDecoration(gradient: AppGradients.heroBlue),
       alignment: Alignment.center,
-      child: const Icon(Icons.image_not_supported_outlined, color: Colors.white, size: 36),
+      child: const Icon(
+        Icons.image_not_supported_outlined,
+        color: Colors.white,
+        size: 36,
+      ),
     );
   }
 }
@@ -640,7 +707,11 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.meeting_room_outlined, size: 72, color: Colors.grey),
+            const Icon(
+              Icons.meeting_room_outlined,
+              size: 72,
+              color: Colors.grey,
+            ),
             const SizedBox(height: 12),
             Text(
               'Không có phòng phù hợp',
@@ -650,7 +721,9 @@ class _EmptyState extends StatelessWidget {
             Text(
               'Thử thay đổi bộ lọc hoặc từ khoá tìm kiếm',
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.black54),
             ),
           ],
         ),
